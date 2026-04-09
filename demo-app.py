@@ -147,7 +147,9 @@ def build_labels(config: AppConfig, num_nodes: int) -> dict[int, str]:
 
 
 def state_to_colors(state: np.ndarray) -> list[str]:
-    return ["red" if value == 1 else "skyblue" for value in state]
+    infected_color = "#ff4d4f"
+    healthy_color = "#7ec8e3"
+    return [infected_color if value == 1 else healthy_color for value in state]
 
 
 def changed_nodes(prev_state: np.ndarray, curr_state: np.ndarray) -> list[int]:
@@ -200,10 +202,12 @@ def draw_panel(
         labels=labels,
         with_labels=True,
         node_color=state_to_colors(state),
-        node_size=850,
-        edge_color="gray",
-        linewidths=1.2,
+        node_size=760,
+        edge_color="#8c8c8c",
+        width=1.3,
+        linewidths=1.0,
         font_weight="bold",
+        font_size=11,
     )
 
     if top_annotations:
@@ -221,7 +225,7 @@ def draw_panel(
                 zorder=5,
             )
 
-    ax.set_title(f"{title}\n{subtitle}", fontsize=12)
+    ax.set_title(f"{title}\n{subtitle}", fontsize=12, color="#222222", pad=10)
     ax.axis("off")
 
 
@@ -260,10 +264,13 @@ class StepViewer:
         self.prob_show_probability = False
 
         self.fig = plt.figure(figsize=(14, 8))
+        self.fig.patch.set_facecolor("#f8f9fb")
         self.fig.suptitle(
             "Infection spread on a graph: adjacency operator-based simulation",
-            fontsize=15,
+            fontsize=16,
             y=0.985,
+            color="#111111",
+            fontweight="semibold",
         )
 
         self.sidebar_texts: list = []
@@ -287,51 +294,67 @@ class StepViewer:
         self.render()
 
     def _create_static_widgets(self) -> None:
-        self.ax_toggle_sidebar = self.fig.add_axes([0.01, 0.93, 0.09, 0.055])
-        self.btn_toggle_sidebar = Button(self.ax_toggle_sidebar, "Hide menu")
+        self.ax_toggle_sidebar = self.fig.add_axes([0.015, 0.93, 0.10, 0.055])
+        self.btn_toggle_sidebar = Button(self.ax_toggle_sidebar, "Hide menu", color="#e9ecef", hovercolor="#dfe6ec")
         self.btn_toggle_sidebar.on_clicked(self.on_toggle_sidebar)
 
-        self.info_text = self.fig.text(0.16, 0.93, "", fontsize=11, va="top")
+        self.ax_toggle_sidebar.set_facecolor("#e9ecef")
+        for spine in self.ax_toggle_sidebar.spines.values():
+            spine.set_edgecolor("#c7ced6")
+            spine.set_linewidth(1.0)
 
-        self.ax_prev = self.fig.add_axes([0.34, 0.03, 0.10, 0.07])
-        self.ax_next = self.fig.add_axes([0.46, 0.03, 0.10, 0.07])
-        self.ax_reset = self.fig.add_axes([0.58, 0.03, 0.10, 0.07])
+        self.info_text = self.fig.text(
+            0.18, 0.93, "", fontsize=12, va="top", color="#222222"
+        )
 
-        self.btn_prev = Button(self.ax_prev, "Previous")
-        self.btn_next = Button(self.ax_next, "Next")
-        self.btn_reset = Button(self.ax_reset, "Reset")
+        self.ax_prev = self.fig.add_axes([0.36, 0.03, 0.10, 0.065])
+        self.ax_next = self.fig.add_axes([0.48, 0.03, 0.10, 0.065])
+        self.ax_reset = self.fig.add_axes([0.60, 0.03, 0.10, 0.065])
+
+        self.btn_prev = Button(self.ax_prev, "Previous", color="#e9ecef", hovercolor="#dfe6ec")
+        self.btn_next = Button(self.ax_next, "Next", color="#e9ecef", hovercolor="#dfe6ec")
+        self.btn_reset = Button(self.ax_reset, "Reset", color="#e9ecef", hovercolor="#dfe6ec")
+
+        for ax in [self.ax_prev, self.ax_next, self.ax_reset]:
+            ax.set_facecolor("#e9ecef")
+            for spine in ax.spines.values():
+                spine.set_edgecolor("#c7ced6")
+                spine.set_linewidth(1.0)
 
         self.btn_prev.on_clicked(self.on_previous)
         self.btn_next.on_clicked(self.on_next)
         self.btn_reset.on_clicked(self.on_reset)
 
     def _style_checkbuttons(self, check: CheckButtons) -> None:
-        # Makes the active state easier to see across matplotlib versions.
         for rect in getattr(check, "rectangles", []):
-            rect.set_facecolor("white")
-            rect.set_edgecolor("black")
+            rect.set_facecolor("#ffffff")
+            rect.set_edgecolor("#444444")
             rect.set_linewidth(1.0)
 
         for lines in getattr(check, "lines", []):
             for line in lines:
-                line.set_color("black")
+                line.set_color("#111111")
                 line.set_linewidth(2.0)
 
+        for label in getattr(check, "labels", []):
+            label.set_fontsize(10)
+            label.set_color("#222222")
+
     def _create_sidebar(self) -> None:
-        self.ax_sidebar_bg = self.fig.add_axes([0.01, 0.17, 0.22, 0.74])
-        self.ax_sidebar_bg.set_facecolor("#f3f3f3")
+        self.ax_sidebar_bg = self.fig.add_axes([0.015, 0.15, 0.235, 0.75])
+        self.ax_sidebar_bg.set_facecolor("#f4f6f8")
         self.ax_sidebar_bg.set_xticks([])
         self.ax_sidebar_bg.set_yticks([])
         for spine in self.ax_sidebar_bg.spines.values():
             spine.set_visible(False)
 
         self.sidebar_texts = [
-            self.fig.text(0.03, 0.88, "Display settings", fontsize=12, fontweight="bold"),
-            self.fig.text(0.03, 0.73, "Deterministic options", fontsize=10, fontweight="bold"),
-            self.fig.text(0.03, 0.47, "Probabilistic options", fontsize=10, fontweight="bold"),
+            self.fig.text(0.035, 0.865, "Display settings", fontsize=15, fontweight="bold", color="#111111"),
         ]
 
-        self.ax_det_main = self.fig.add_axes([0.03, 0.77, 0.18, 0.07])
+        # 1 Deterministic model
+        self.ax_det_main = self.fig.add_axes([0.055, 0.765, 0.17, 0.05])
+        self.ax_det_main.set_facecolor("#f4f6f8")
         self.chk_det_main = CheckButtons(
             self.ax_det_main,
             ["Deterministic model"],
@@ -340,7 +363,9 @@ class StepViewer:
         self._style_checkbuttons(self.chk_det_main)
         self.chk_det_main.on_clicked(self.on_det_main_toggle)
 
-        self.ax_det_opts = self.fig.add_axes([0.03, 0.61, 0.18, 0.09])
+        # 1.1 option
+        self.ax_det_opts = self.fig.add_axes([0.075, 0.705, 0.15, 0.05])
+        self.ax_det_opts.set_facecolor("#f4f6f8")
         self.chk_det_opts = CheckButtons(
             self.ax_det_opts,
             ["show A @ x_t"],
@@ -349,7 +374,9 @@ class StepViewer:
         self._style_checkbuttons(self.chk_det_opts)
         self.chk_det_opts.on_clicked(self.on_det_option_toggle)
 
-        self.ax_prob_main = self.fig.add_axes([0.03, 0.47, 0.18, 0.07])
+        # 2 Probabilistic model
+        self.ax_prob_main = self.fig.add_axes([0.055, 0.595, 0.17, 0.05])
+        self.ax_prob_main.set_facecolor("#f4f6f8")
         self.chk_prob_main = CheckButtons(
             self.ax_prob_main,
             ["Probabilistic model"],
@@ -358,10 +385,12 @@ class StepViewer:
         self._style_checkbuttons(self.chk_prob_main)
         self.chk_prob_main.on_clicked(self.on_prob_main_toggle)
 
-        self.ax_prob_opts = self.fig.add_axes([0.03, 0.28, 0.18, 0.17])
+        # 2.1 and 2.2 options
+        self.ax_prob_opts = self.fig.add_axes([0.075, 0.485, 0.15, 0.10])
+        self.ax_prob_opts.set_facecolor("#f4f6f8")
         self.chk_prob_opts = CheckButtons(
             self.ax_prob_opts,
-            ["show A @ x_t", "show probability of infection"],
+            ["show A @ x_t", "show probability"],
             [self.prob_show_influence, self.prob_show_probability],
         )
         self._style_checkbuttons(self.chk_prob_opts)
