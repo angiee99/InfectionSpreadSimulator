@@ -31,7 +31,7 @@ class AppConfig:
 
     initial_infected: list[int] = field(default_factory=lambda: [0])
 
-    steps: int = 12
+    steps: int = 8
     beta: float = 0.45
     random_seed: int = 42
     layout_seed: int = 7
@@ -239,12 +239,12 @@ class StepViewer:
         self.max_step = len(det_history) - 1
 
         self.fig = plt.figure(figsize=(13, 7))
-        self.ax_det = self.fig.add_axes([0.05, 0.22, 0.40, 0.68])
-        self.ax_prob = self.fig.add_axes([0.55, 0.22, 0.40, 0.68])
+        self.ax_det = self.fig.add_axes([0.05, 0.34, 0.36, 0.42])
+        self.ax_prob = self.fig.add_axes([0.59, 0.34, 0.36, 0.42])
 
-        self.ax_prev = self.fig.add_axes([0.28, 0.07, 0.12, 0.07])
-        self.ax_next = self.fig.add_axes([0.44, 0.07, 0.12, 0.07])
-        self.ax_reset = self.fig.add_axes([0.60, 0.07, 0.12, 0.07])
+        self.ax_prev = self.fig.add_axes([0.32, 0.05, 0.10, 0.05])
+        self.ax_next = self.fig.add_axes([0.48, 0.05, 0.10, 0.05])
+        self.ax_reset = self.fig.add_axes([0.64, 0.05, 0.10, 0.05])
 
         self.btn_prev = Button(self.ax_prev, "Previous")
         self.btn_next = Button(self.ax_next, "Next")
@@ -254,13 +254,14 @@ class StepViewer:
         self.btn_next.on_clicked(self.on_next)
         self.btn_reset.on_clicked(self.on_reset)
 
-        self.info_text = self.fig.text(0.05, 0.95, "", fontsize=12, va="top")
-        self.operator_text = self.fig.text(0.05, 0.165, "", fontsize=10, va="top", family="monospace")
+        self.info_text = self.fig.text(0.05, 0.93, "", fontsize=11, va="top")
+        self.operator_text = self.fig.text(0.05, 0.19, "", fontsize=10, va="top", family="monospace")
+        self.prob_text = self.fig.text(0.55, 0.19, "", fontsize=10, va="top", family="monospace")
 
         self.fig.suptitle(
             "Infection spread on a graph: adjacency operator-based simulation",
             fontsize=15,
-            y=0.995,
+            y=0.985,
         )
 
         self.render()
@@ -276,13 +277,42 @@ class StepViewer:
 
         return f"step = {self.step_index}, infected = {infected}/{len(state)}, changed = {changed}"
 
+    def _format_vector_with_labels(self, values: np.ndarray, precision: int = 3, per_row: int = 5) -> str:
+        parts = []
+        for i, value in enumerate(values):
+            label = self.labels[i]
+            if isinstance(value, (np.integer, int)):
+                parts.append(f"{label}:{int(value)}")
+            else:
+                parts.append(f"{label}:{float(value):.{precision}f}")
+            
+        # split into rows
+        rows = [
+            " ".join(parts[i:i + per_row])
+            for i in range(0, len(parts), per_row)
+        ]
+
+        return "\n".join(rows)
+
     def build_operator_text(self) -> str:
         current = self.det_history[self.step_index]
         influence = self.A @ current
         return (
-            "Deterministic operator view (current step):\n"
-            f"x_t     = {current.tolist()}\n"
-            f"A @ x_t = {influence.tolist()}"
+            "Deterministic next-step view\n"
+            f"x_t: {self._format_vector_with_labels(current)}\n\n"
+            f"A @ x_t: {self._format_vector_with_labels(influence, precision=0)}"
+        )
+
+    def build_probability_text(self) -> str:
+        current = self.prob_history[self.step_index]
+        influence = self.A @ current
+        probs = 1.0 - (1.0 - self.config.beta) ** influence
+        probs = np.round(probs, 3)
+        return (
+            "Probabilistic next-step view"
+            f"\nx_t: {self._format_vector_with_labels(current)}\n\n"
+            f"A @ x_t: {self._format_vector_with_labels(influence, precision=0)}\n\n"
+            f"p_next: {self._format_vector_with_labels(probs)}\n"
         )
 
     def render(self) -> None:
@@ -313,10 +343,9 @@ class StepViewer:
             f"Graph type: {self.config.graph_type} | beta = {self.config.beta} | "
             f"initial infected = {self.config.initial_infected} | step = {self.step_index}/{self.max_step}"
         )
-
         self.operator_text.set_text(self.build_operator_text())
+        self.prob_text.set_text(self.build_probability_text())
 
-        # Force immediate redraw to avoid UI freezing on some backends
         self.fig.canvas.draw()
         self.fig.canvas.flush_events()
 
