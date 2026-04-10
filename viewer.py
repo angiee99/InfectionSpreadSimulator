@@ -1,8 +1,6 @@
-# viewer.py
-
 from __future__ import annotations
 
-from typing import Optional
+from typing import Callable, Optional
 
 import matplotlib.pyplot as plt
 from matplotlib.widgets import Button, CheckButtons
@@ -10,11 +8,76 @@ import networkx as nx
 import numpy as np
 
 from config import AppConfig
+from graph_builder import GraphBuilder
 from visualization import GraphVisualizer
 
 
 class StepViewer:
     def __init__(
+        self,
+        graph: nx.Graph,
+        A: np.ndarray,
+        det_history: list[np.ndarray],
+        prob_history: list[np.ndarray],
+        pos: dict[int, tuple[float, float]],
+        labels: dict[int, str],
+        config: AppConfig,
+        on_graph_change: Optional[Callable[[str], None]] = None,
+    ) -> None:
+        self.graph = graph
+        self.A = A
+        self.det_history = det_history
+        self.prob_history = prob_history
+        self.pos = pos
+        self.labels = labels
+        self.config = config
+        self.on_graph_change = on_graph_change
+
+        self.step_index = 0
+        self.max_step = len(det_history) - 1
+
+        self.sidebar_visible = True
+
+        self.show_det_panel = True
+        self.show_prob_panel = True
+        self.det_show_influence = False
+        self.prob_show_influence = False
+        self.prob_show_probability = False
+
+        self.fig = plt.figure(figsize=(15, 8))
+        self.fig.patch.set_facecolor("#f8f9fb")
+        self.fig.suptitle(
+            "Infection spread on a graph: adjacency operator-based simulation",
+            fontsize=16,
+            y=0.985,
+            color="#111111",
+            fontweight="semibold",
+        )
+
+        self.sidebar_texts: list = []
+        self.graph_buttons: list[Button] = []
+        self.graph_button_axes: list = []
+
+        self.ax_det = None
+        self.ax_prob = None
+
+        self.ax_sidebar_bg = None
+        self.ax_det_main = None
+        self.ax_det_opts = None
+        self.ax_prob_main = None
+        self.ax_prob_opts = None
+
+        self.chk_det_main = None
+        self.chk_det_opts = None
+        self.chk_prob_main = None
+        self.chk_prob_opts = None
+
+        self._create_static_widgets()
+        self._create_sidebar()
+        self._create_dynamic_axes()
+        self.render()
+
+    def update_data(
         self,
         graph: nx.Graph,
         A: np.ndarray,
@@ -34,43 +97,6 @@ class StepViewer:
 
         self.step_index = 0
         self.max_step = len(det_history) - 1
-
-        self.sidebar_visible = True
-
-        self.show_det_panel = True
-        self.show_prob_panel = True
-        self.det_show_influence = False
-        self.prob_show_influence = False
-        self.prob_show_probability = False
-
-        self.fig = plt.figure(figsize=(14, 8))
-        self.fig.patch.set_facecolor("#f8f9fb")
-        self.fig.suptitle(
-            "Infection spread on a graph: adjacency operator-based simulation",
-            fontsize=16,
-            y=0.985,
-            color="#111111",
-            fontweight="semibold",
-        )
-
-        self.sidebar_texts: list = []
-        self.ax_det = None
-        self.ax_prob = None
-
-        self.ax_sidebar_bg = None
-        self.ax_det_main = None
-        self.ax_det_opts = None
-        self.ax_prob_main = None
-        self.ax_prob_opts = None
-
-        self.chk_det_main = None
-        self.chk_det_opts = None
-        self.chk_prob_main = None
-        self.chk_prob_opts = None
-
-        self._create_static_widgets()
-        self._create_sidebar()
-        self._create_dynamic_axes()
         self.render()
 
     def _create_static_widgets(self) -> None:
@@ -145,6 +171,54 @@ class StepViewer:
             label.set_fontsize(10)
             label.set_color("#222222")
 
+    def _style_button(self, ax, button: Button, selected: bool = False) -> None:
+        ax.set_facecolor("#dbeafe" if selected else "#e9ecef")
+        for spine in ax.spines.values():
+            spine.set_edgecolor("#93c5fd" if selected else "#c7ced6")
+            spine.set_linewidth(1.2 if selected else 1.0)
+        button.label.set_fontsize(9)
+        button.label.set_color("#111111")
+
+    def _create_graph_buttons(self) -> None:
+        y_start = 0.37
+        height = 0.035
+        gap = 0.008
+
+        for index, (label, graph_type) in enumerate(GraphBuilder.PREDEFINED_GRAPH_OPTIONS):
+            y = y_start - index * (height + gap)
+            ax = self.fig.add_axes([0.04, y, 0.16, height])
+
+            btn = Button(ax, label)
+            selected = self.config.graph_type == graph_type
+            self._style_button(ax, btn, selected=selected)
+
+            def make_callback(gt: str):
+                return lambda _event: self.on_graph_selected(gt)
+
+            btn.on_clicked(make_callback(graph_type))
+
+            self.graph_button_axes.append(ax)
+            self.graph_buttons.append(btn)
+
+        self.sidebar_texts.append(
+            self.fig.text(
+                0.035,
+                0.41,
+                "Choose graph",
+                fontsize=13,
+                fontweight="bold",
+                color="#111111",
+            )
+        )
+
+    def _refresh_graph_button_styles(self) -> None:
+        for (label, graph_type), ax, btn in zip(
+            GraphBuilder.PREDEFINED_GRAPH_OPTIONS, # use [:5] to limit
+            self.graph_button_axes,
+            self.graph_buttons,
+        ):
+            self._style_button(ax, btn, selected=(self.config.graph_type == graph_type))
+
     def _create_sidebar(self) -> None:
         self.ax_sidebar_bg = self.fig.add_axes([0.015, 0.15, 0.235, 0.75])
         self.ax_sidebar_bg.set_facecolor("#f4f6f8")
@@ -204,6 +278,8 @@ class StepViewer:
         self._style_checkbuttons(self.chk_prob_opts)
         self.chk_prob_opts.on_clicked(self.on_prob_option_toggle)
 
+        self._create_graph_buttons()
+
     def _remove_sidebar(self) -> None:
         for attr in [
             "ax_sidebar_bg",
@@ -216,6 +292,11 @@ class StepViewer:
             if ax is not None:
                 ax.remove()
                 setattr(self, attr, None)
+
+        for ax in self.graph_button_axes:
+            ax.remove()
+        self.graph_button_axes = []
+        self.graph_buttons = []
 
         for text in self.sidebar_texts:
             text.remove()
@@ -298,6 +379,8 @@ class StepViewer:
             f"step = {self.step_index}/{self.max_step}"
         )
 
+        self._refresh_graph_button_styles()
+
         if self.ax_det is not None:
             det_state = self.det_history[self.step_index]
             det_influence = self.A @ det_state
@@ -341,6 +424,10 @@ class StepViewer:
             )
 
         self.fig.canvas.draw()
+
+    def on_graph_selected(self, graph_type: str) -> None:
+        if self.on_graph_change is not None and graph_type != self.config.graph_type:
+            self.on_graph_change(graph_type)
 
     def on_toggle_sidebar(self, _event) -> None:
         self._set_sidebar_visible(not self.sidebar_visible)

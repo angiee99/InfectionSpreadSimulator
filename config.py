@@ -1,13 +1,27 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
 from typing import Literal, Optional
 
-GraphType = Literal["line", "star", "cycle", "erdos_renyi", "custom"]
+
+GraphType = Literal[
+    "line",
+    "star",
+    "cycle",
+    "erdos_renyi",
+    "custom",
+    "binary_tree",
+    "grid_2d",
+    "wheel",
+    "ladder",
+]
 
 
 @dataclass
 class AppConfig:
     graph_type: GraphType = "custom"
     num_nodes: int = 10
+
     custom_edges: Optional[list[tuple[int, int]]] = field(
         default_factory=lambda: [
             (0, 1),
