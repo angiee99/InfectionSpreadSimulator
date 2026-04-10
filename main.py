@@ -41,6 +41,7 @@ def prepare_simulation_data(config: AppConfig):
 
 
 def main() -> None:
+    # configs that can be updated
     config = AppConfig(
         graph_type="custom",
         num_nodes=10,
@@ -56,7 +57,7 @@ def main() -> None:
             (8, 9),
         ],
         initial_infected=[0],
-        steps=8,
+        steps=15,
         beta=0.45,
         random_seed=42,
         node_labels=["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"],
