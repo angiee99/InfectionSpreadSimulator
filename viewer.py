@@ -44,6 +44,18 @@ class StepViewer:
         self.prob_show_influence = False
         self.prob_show_probability = False
 
+        # Sidebar geometry
+        self.sidebar_left = 0.015
+        self.sidebar_bottom = 0.02
+        self.sidebar_width = 0.235
+        self.sidebar_height = 0.86
+
+        self.sidebar_title_x = 0.035
+        self.sidebar_main_x = 0.055
+        self.sidebar_main_w = 0.17
+        self.sidebar_sub_x = 0.075
+        self.sidebar_sub_w = 0.15
+
         self.fig = plt.figure(figsize=(15, 8))
         self.fig.patch.set_facecolor("#f8f9fb")
         self.fig.suptitle(
@@ -171,26 +183,42 @@ class StepViewer:
             label.set_fontsize(10)
             label.set_color("#222222")
 
-    def _style_button(self, ax, button: Button, selected: bool = False) -> None:
-        ax.set_facecolor("#dbeafe" if selected else "#e9ecef")
+    def _style_sidebar_option_axis(self, ax) -> None:
+        ax.set_facecolor("none")
+        ax.set_xticks([])
+        ax.set_yticks([])
         for spine in ax.spines.values():
-            spine.set_edgecolor("#93c5fd" if selected else "#c7ced6")
-            spine.set_linewidth(1.2 if selected else 1.0)
-        button.label.set_fontsize(9)
-        button.label.set_color("#111111")
+            spine.set_visible(False)
 
-    def _create_graph_buttons(self) -> None:
-        y_start = 0.37
-        height = 0.035
-        gap = 0.008
+    def _style_button(self, ax, button: Button, selected: bool = False) -> None:
+        ax.set_facecolor("#eef6ff" if selected else "#ffffff")
+        for spine in ax.spines.values():
+            spine.set_edgecolor("#8bbcff" if selected else "#444444")
+            spine.set_linewidth(1.4 if selected else 1.1)
+        button.label.set_fontsize(10)
+        button.label.set_color("#222222")
+
+    def _create_graph_buttons(self, title_y: float, start_y: float) -> None:
+        self.sidebar_texts.append(
+            self.fig.text(
+                self.sidebar_title_x,
+                title_y,
+                "Choose graph",
+                fontsize=15,
+                fontweight="bold",
+                color="#111111",
+            )
+        )
+
+        button_height = 0.030
+        button_gap = 0.006
 
         for index, (label, graph_type) in enumerate(GraphBuilder.PREDEFINED_GRAPH_OPTIONS):
-            y = y_start - index * (height + gap)
-            ax = self.fig.add_axes([0.04, y, 0.16, height])
+            y = start_y - index * (button_height + button_gap)
+            ax = self.fig.add_axes([self.sidebar_main_x, y, self.sidebar_main_w, button_height])
 
             btn = Button(ax, label)
-            selected = self.config.graph_type == graph_type
-            self._style_button(ax, btn, selected=selected)
+            self._style_button(ax, btn, selected=(self.config.graph_type == graph_type))
 
             def make_callback(gt: str):
                 return lambda _event: self.on_graph_selected(gt)
@@ -200,46 +228,49 @@ class StepViewer:
             self.graph_button_axes.append(ax)
             self.graph_buttons.append(btn)
 
-        self.sidebar_texts.append(
-            self.fig.text(
-                0.035,
-                0.41,
-                "Choose graph",
-                fontsize=13,
-                fontweight="bold",
-                color="#111111",
-            )
-        )
-
     def _refresh_graph_button_styles(self) -> None:
-        for (label, graph_type), ax, btn in zip(
-            GraphBuilder.PREDEFINED_GRAPH_OPTIONS, # use [:5] to limit
+        for (_, graph_type), ax, btn in zip(
+            GraphBuilder.PREDEFINED_GRAPH_OPTIONS,
             self.graph_button_axes,
             self.graph_buttons,
         ):
             self._style_button(ax, btn, selected=(self.config.graph_type == graph_type))
 
     def _create_sidebar(self) -> None:
-        self.ax_sidebar_bg = self.fig.add_axes([0.015, 0.15, 0.235, 0.75])
+        self.ax_sidebar_bg = self.fig.add_axes(
+            [self.sidebar_left, self.sidebar_bottom, self.sidebar_width, self.sidebar_height]
+        )
         self.ax_sidebar_bg.set_facecolor("#f4f6f8")
         self.ax_sidebar_bg.set_xticks([])
         self.ax_sidebar_bg.set_yticks([])
         for spine in self.ax_sidebar_bg.spines.values():
             spine.set_visible(False)
 
+        # Vertical layout tuned so all blocks stay inside the grey background
+        display_title_y = 0.84
+
+        det_main_y = 0.745
+        det_opts_y = 0.695
+
+        prob_main_y = 0.605
+        prob_opts_y = 0.535
+
+        graph_title_y = 0.355
+        graph_buttons_start_y = 0.275
+
         self.sidebar_texts = [
             self.fig.text(
-                0.035,
-                0.865,
-                "Display settings",
+                self.sidebar_title_x,
+                display_title_y,
+                "Display options",
                 fontsize=15,
                 fontweight="bold",
                 color="#111111",
             ),
         ]
 
-        self.ax_det_main = self.fig.add_axes([0.055, 0.765, 0.17, 0.05])
-        self.ax_det_main.set_facecolor("#f4f6f8")
+        self.ax_det_main = self.fig.add_axes([self.sidebar_main_x, det_main_y, self.sidebar_main_w, 0.04])
+        self._style_sidebar_option_axis(self.ax_det_main)
         self.chk_det_main = CheckButtons(
             self.ax_det_main,
             ["Deterministic model"],
@@ -248,8 +279,8 @@ class StepViewer:
         self._style_checkbuttons(self.chk_det_main)
         self.chk_det_main.on_clicked(self.on_det_main_toggle)
 
-        self.ax_det_opts = self.fig.add_axes([0.075, 0.705, 0.15, 0.05])
-        self.ax_det_opts.set_facecolor("#f4f6f8")
+        self.ax_det_opts = self.fig.add_axes([self.sidebar_sub_x, det_opts_y, self.sidebar_sub_w, 0.04])
+        self._style_sidebar_option_axis(self.ax_det_opts)
         self.chk_det_opts = CheckButtons(
             self.ax_det_opts,
             ["show A @ x_t"],
@@ -258,8 +289,8 @@ class StepViewer:
         self._style_checkbuttons(self.chk_det_opts)
         self.chk_det_opts.on_clicked(self.on_det_option_toggle)
 
-        self.ax_prob_main = self.fig.add_axes([0.055, 0.595, 0.17, 0.05])
-        self.ax_prob_main.set_facecolor("#f4f6f8")
+        self.ax_prob_main = self.fig.add_axes([self.sidebar_main_x, prob_main_y, self.sidebar_main_w, 0.04])
+        self._style_sidebar_option_axis(self.ax_prob_main)
         self.chk_prob_main = CheckButtons(
             self.ax_prob_main,
             ["Probabilistic model"],
@@ -268,8 +299,8 @@ class StepViewer:
         self._style_checkbuttons(self.chk_prob_main)
         self.chk_prob_main.on_clicked(self.on_prob_main_toggle)
 
-        self.ax_prob_opts = self.fig.add_axes([0.075, 0.485, 0.15, 0.10])
-        self.ax_prob_opts.set_facecolor("#f4f6f8")
+        self.ax_prob_opts = self.fig.add_axes([self.sidebar_sub_x, prob_opts_y, self.sidebar_sub_w, 0.08])
+        self._style_sidebar_option_axis(self.ax_prob_opts)
         self.chk_prob_opts = CheckButtons(
             self.ax_prob_opts,
             ["show A @ x_t", "show probability"],
@@ -278,7 +309,10 @@ class StepViewer:
         self._style_checkbuttons(self.chk_prob_opts)
         self.chk_prob_opts.on_clicked(self.on_prob_option_toggle)
 
-        self._create_graph_buttons()
+        self._create_graph_buttons(
+            title_y=graph_title_y,
+            start_y=graph_buttons_start_y,
+        )
 
     def _remove_sidebar(self) -> None:
         for attr in [
