@@ -7,6 +7,7 @@ from config import AppConfig
 
 class GraphBuilder:
     PREDEFINED_GRAPH_OPTIONS = [
+        ("Example", "example_custom"),
         ("Custom", "custom"),
         ("Line", "line"),
         ("Star", "star"),
@@ -44,6 +45,22 @@ class GraphBuilder:
             graph = nx.Graph()
             graph.add_nodes_from(range(config.num_nodes))
             graph.add_edges_from(config.custom_edges)
+
+        elif config.graph_type == "example_custom":
+            graph = nx.Graph()
+
+            graph.add_nodes_from(range(6))
+            graph.add_edges_from(
+                [
+                    (0, 1),
+                    (0, 2),
+                    (1, 2),
+                    (1, 4),
+                    (2, 3),
+                    (3, 4),
+                    (4, 5), 
+                ]
+            )
 
         elif config.graph_type == "binary_tree":
             # height=3 gives 15 nodes

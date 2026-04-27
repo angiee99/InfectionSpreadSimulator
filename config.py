@@ -10,6 +10,7 @@ GraphType = Literal[
     "cycle",
     "erdos_renyi",
     "custom",
+    "example_custom",
     "binary_tree",
     "grid_2d",
     "wheel",

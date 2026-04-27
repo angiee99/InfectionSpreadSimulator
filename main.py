@@ -16,8 +16,7 @@ def prepare_simulation_data(config: AppConfig):
     config.num_nodes = graph.number_of_nodes()
     config.initial_infected = GraphBuilder.get_initial_infected_for_graph(graph)
 
-    # default labels from node ids for predefined graphs
-    if config.graph_type == "custom":
+    if config.graph_type in {"custom", "example_custom"}:
         labels = GraphVisualizer.build_labels(config, config.num_nodes)
     else:
         config.node_labels = None
@@ -43,24 +42,22 @@ def prepare_simulation_data(config: AppConfig):
 def main() -> None:
     # configs that can be updated
     config = AppConfig(
-        graph_type="custom",
-        num_nodes=10,
+        graph_type="example_custom",
+        num_nodes=6,
         custom_edges=[
             (0, 1),
+            (0, 2),
             (1, 2),
+            (1, 4),
             (2, 3),
             (3, 4),
-            (1, 5),
-            (5, 6),
-            (2, 7),
-            (7, 8),
-            (8, 9),
+            (4, 5), 
         ],
         initial_infected=[0],
         steps=15,
         beta=0.45,
         random_seed=42,
-        node_labels=["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"],
+        node_labels=["1", "2", "3", "4", "5", "6"],
     )
 
     graph, A, det_history, prob_history, pos, labels = prepare_simulation_data(config)
@@ -86,6 +83,15 @@ def main() -> None:
                 (8, 9),
             ]
             config.node_labels = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"]
+
+        elif graph_type == "example_custom":
+            config.num_nodes = 6
+
+            config.custom_edges = None
+            config.node_labels = ["1", "2", "3", "4", "5", "6"]
+
+        else:
+            config.node_labels = None
 
         graph, A, det_history, prob_history, pos, labels = prepare_simulation_data(config)
 
